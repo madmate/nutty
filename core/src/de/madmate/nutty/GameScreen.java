@@ -69,7 +69,7 @@ public class GameScreen extends ScreenAdapter {
         clearScreen();
         update(delta);
         draw();
-        drawDebug();
+        //drawDebug();
     }
 
     @Override
@@ -154,6 +154,7 @@ public class GameScreen extends ScreenAdapter {
         staticAcorn.setPosition(fireingPosition.x - staticAcorn.getWidth() / 2f, fireingPosition.y - staticAcorn.getHeight() / 2f);
     }
 
+
     private void clearDeadBodies() {
         for (Body body:toRemove) {
             sprites.remove(body);
@@ -194,11 +195,12 @@ public class GameScreen extends ScreenAdapter {
     private void createBullet() {
         CircleShape circleShape = new CircleShape();
         circleShape.setRadius(0.5f);
-        circleShape.setPosition(new Vector2(convertUnitsToMetres(fireingPosition.x), convertUnitsToMetres(fireingPosition.y)));
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
         Body bullet = world.createBody(bodyDef);
+        bullet.setUserData("acorn");
         bullet.createFixture(circleShape, 1);
+        bullet.setTransform(new Vector2(convertUnitsToMetres(fireingPosition.x), convertUnitsToMetres(fireingPosition.y)), 0);
 
         Sprite sprite = new Sprite(textureAtlas.findRegion("acorn"));
         sprite.setOriginCenter();
