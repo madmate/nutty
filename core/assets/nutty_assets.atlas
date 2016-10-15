@@ -1,0 +1,76 @@
+
+nutty_assets.png
+size: 1024,1024
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+acorn
+  rotate: false
+  xy: 66, 75
+  size: 48, 48
+  orig: 48, 48
+  offset: 0, 0
+  index: -1
+bg
+  rotate: false
+  xy: 2, 452
+  size: 960, 540
+  orig: 960, 540
+  offset: 0, 0
+  index: -1
+bird
+  rotate: false
+  xy: 2, 248
+  size: 128, 90
+  orig: 128, 90
+  offset: 0, 0
+  index: -1
+floor
+  rotate: false
+  xy: 124, 386
+  size: 160, 64
+  orig: 160, 64
+  offset: 0, 0
+  index: -1
+obstacleHorizontal
+  rotate: false
+  xy: 286, 418
+  size: 128, 32
+  orig: 128, 32
+  offset: 0, 0
+  index: -1
+obstacleVertical
+  rotate: false
+  xy: 964, 864
+  size: 32, 128
+  orig: 32, 128
+  offset: 0, 0
+  index: -1
+slingshot
+  rotate: false
+  xy: 2, 125
+  size: 62, 121
+  orig: 62, 121
+  offset: 0, 0
+  index: -1
+slingshotBack
+  rotate: false
+  xy: 2, 2
+  size: 62, 121
+  orig: 62, 121
+  offset: 0, 0
+  index: -1
+slingshotFront
+  rotate: false
+  xy: 66, 125
+  size: 62, 121
+  orig: 62, 121
+  offset: 0, 0
+  index: -1
+squirrel
+  rotate: false
+  xy: 2, 340
+  size: 120, 110
+  orig: 120, 110
+  offset: 0, 0
+  index: -1

@@ -6,13 +6,18 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -33,7 +38,7 @@ public class GameScreen extends ScreenAdapter {
     private static final float UPPER_ANGLE = 3 * MathUtils.PI / 2f;
     private static final float LOWER_ANGLE = MathUtils.PI / 2f;
 
-    private final Vector2 anchor = new Vector2(convertMetresToUnits(3), convertMetresToUnits(6));
+    private final Vector2 anchor = new Vector2(convertMetresToUnits(6.125f), convertMetresToUnits(5.75f));
     private final Vector2 fireingPosition = anchor.cpy();
     private float distance;
     private float angle;
@@ -44,9 +49,14 @@ public class GameScreen extends ScreenAdapter {
     private OrthographicCamera camera;
     private OrthographicCamera box2dcam;
     private ShapeRenderer shapeRenderer;
-    SpriteBatch batch;
+    private SpriteBatch batch;
     private TiledMap tiledMap;
     private OrthogonalTiledMapRenderer orthogonalTiledMapRenderer;
+    TextureAtlas textureAtlas;
+
+    private ObjectMap<Body, Sprite> sprites = new ObjectMap<>();
+    private Array<Body> toRemove = new Array<>();
+    private Sprite slingshot, squirrel, staticAcorn;
 
 
     public GameScreen(NuttyGame nuttyGame) {
@@ -84,8 +94,6 @@ public class GameScreen extends ScreenAdapter {
         orthogonalTiledMapRenderer.setView(camera);
 
         box2dcam = new OrthographicCamera(UNIT_WIDTH, UNIT_HEIGHT);
-        box2dcam.position.set(UNIT_WIDTH/2, UNIT_HEIGHT/2, 0);
-        box2dcam.update();
 
         TiledObjectBodyBuilder.buildBuildingBodies(tiledMap, world);
         TiledObjectBodyBuilder.buildFloorBodies(tiledMap, world);
@@ -104,6 +112,22 @@ public class GameScreen extends ScreenAdapter {
                 return true;
             }
         });
+
+        textureAtlas = nuttyGame.getAssetManager().get("nutty_assets.atlas");
+        Array<Body> bodies = new Array<>();
+        world.getBodies(bodies);
+        for (Body body:bodies) {
+            Sprite sprite = SpriteGenerator.generateSpriteForBody(textureAtlas, body);
+            if (sprite != null) sprites.put(body, sprite);
+        }
+
+        slingshot = new Sprite(textureAtlas.findRegion("slingshot"));
+        slingshot.setPosition(170, 64);
+        squirrel = new Sprite(textureAtlas.findRegion("squirrel"));
+        squirrel.setPosition(32, 64);
+        staticAcorn = new Sprite(textureAtlas.findRegion("acorn"));
+
+        world.setContactListener(new NuttyContactListener());
     }
 
     @Override
@@ -112,9 +136,31 @@ public class GameScreen extends ScreenAdapter {
     }
 
     private void update(float delta) {
+        clearDeadBodies();
         world.step(delta, 6, 2);
+        box2dcam.position.set(UNIT_WIDTH/2, UNIT_HEIGHT/2, 0);
+        box2dcam.update();
+        updateSpritePositions();
     }
 
+    private void updateSpritePositions() {
+        for (Body body : sprites.keys()) {
+            Sprite sprite = sprites.get(body);
+            sprite.setPosition(
+                    convertMetresToUnits(body.getPosition().x) - sprite.getWidth() / 2f,
+                    convertMetresToUnits(body.getPosition().y) - sprite.getHeight() / 2f);
+            sprite.setRotation(MathUtils.radiansToDegrees * body.getAngle());
+        }
+        staticAcorn.setPosition(fireingPosition.x - staticAcorn.getWidth() / 2f, fireingPosition.y - staticAcorn.getHeight() / 2f);
+    }
+
+    private void clearDeadBodies() {
+        for (Body body:toRemove) {
+            sprites.remove(body);
+            world.destroyBody(body);
+        }
+        toRemove.clear();
+    }
     private void clearScreen() {
         Gdx.gl.glClearColor(Color.TEAL.r, Color.TEAL.g, Color.TEAL.b, Color.TEAL.a);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -125,6 +171,12 @@ public class GameScreen extends ScreenAdapter {
         batch.setTransformMatrix(camera.view);
         orthogonalTiledMapRenderer.render();
         batch.begin();
+        for (Sprite sprite:sprites.values()) {
+            sprite.draw(batch);
+        }
+        squirrel.draw(batch);
+        staticAcorn.draw(batch);
+        slingshot.draw(batch);
         batch.end();
     }
 
@@ -147,7 +199,13 @@ public class GameScreen extends ScreenAdapter {
         bodyDef.type = BodyDef.BodyType.DynamicBody;
         Body bullet = world.createBody(bodyDef);
         bullet.createFixture(circleShape, 1);
+
+        Sprite sprite = new Sprite(textureAtlas.findRegion("acorn"));
+        sprite.setOriginCenter();
+        sprites.put(bullet, sprite);
+
         circleShape.dispose();
+
         float velX = Math.abs((MAX_STRENGTH*-MathUtils.cos(angle)*(distance/100f)));
         float velY = Math.abs((MAX_STRENGTH*-MathUtils.sin(angle)*(distance/100f)));
         bullet.setLinearVelocity(velX, velY);
@@ -188,5 +246,40 @@ public class GameScreen extends ScreenAdapter {
             }
         }
         fireingPosition.set(anchor.x + (distance * -MathUtils.cos(angle)), anchor.y + (distance * -MathUtils.sin(angle)));
+    }
+
+    private class NuttyContactListener implements ContactListener {
+
+        @Override
+        public void beginContact(Contact contact) {
+            if (contact.isTouching()) {
+                Fixture attacker = contact.getFixtureA();
+                Fixture defender = contact.getFixtureB();
+                WorldManifold worldManifold = contact.getWorldManifold();
+                if ("enemy".equals(defender.getUserData())) {
+                    Vector2 vel1 = attacker.getBody().getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
+                    Vector2 vel2 = defender.getBody().getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
+                    Vector2 impactVelocity = vel1.sub(vel2);
+                    if (Math.abs(impactVelocity.x) > 1 || Math.abs(impactVelocity.y) > 1) {
+                        toRemove.add(defender.getBody());
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void endContact(Contact contact) {
+
+        }
+
+        @Override
+        public void preSolve(Contact contact, Manifold oldManifold) {
+
+        }
+
+        @Override
+        public void postSolve(Contact contact, ContactImpulse impulse) {
+
+        }
     }
 }
